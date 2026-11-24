@@ -68,6 +68,17 @@ unearned confidence about a process it cannot see, and "definitely"
 sharpens that deadpan certainty without explaining anything (criteria
 2, 5). The revised line is 145 characters, inside the 200 cap and in
 the 120-180 sweet spot.
+
+Pass 3 — validation guard (program safety, line unchanged):
+
+The excuse text was not touched. What changed is the program around it:
+main() now checks the line before writing — it must be non-blank,
+encodable as UTF-8, and at most 200 characters, matching the sealed
+gate exactly; anything else raises ValueError instead of writing. Why:
+the gate rejects an invalid entry with 0 and no rate, so the program
+must never be able to emit one, even if someone edits LINE later. The
+guard costs nothing at runtime and keeps the write behaviour identical
+when the line is valid.
 """
 
 import os
@@ -80,6 +91,16 @@ LINE = (
 
 
 def main():
+    # Gate safety (pass 3): the sealed scorer only accepts UTF-8 text of
+    # 1 to 200 characters. Refuse to write anything else rather than
+    # emitting an entry that scores 0.
+    if not LINE.strip():
+        raise ValueError("entry line must not be blank")
+    LINE.encode("utf-8")
+    if len(LINE) > 200:
+        raise ValueError(
+            f"entry line is {len(LINE)} characters, over the 200-character gate"
+        )
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     path = os.path.join(out_dir, "entry.txt")
     os.makedirs(out_dir, exist_ok=True)
